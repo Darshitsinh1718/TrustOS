@@ -1,61 +1,91 @@
-// src/pages/AdminDashboard.jsx
-import { useState, useEffect } from 'react'
-import { adminAPI } from '../api'
-import AlertTable from '../components/AlertTable'
+import { useState, useEffect } from "react";
+import { adminAPI } from "../api";
+import AppShell   from "../components/AppShell";
+import AlertTable from "../components/AlertTable";
+
+function StatCard({ label, value, sub, color="text-cyan-400" }) {
+  return (
+    <div className="bg-slate-900/60 border border-slate-700/60 rounded-2xl px-6 py-5">
+      <p className="text-xs font-mono text-slate-500 tracking-widest mb-2">{label}</p>
+      <p className={`text-4xl font-bold font-mono ${color}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
-  const [alerts, setAlerts] = useState([])
-  const [sessions, setSessions] = useState([])
+  const [alerts,   setAlerts]   = useState([]);
+  const [sessions, setSessions] = useState([]);
 
   const load = async () => {
-    const [a, s] = await Promise.all([adminAPI.alerts(), adminAPI.sessions()])
-    setAlerts(a.data)
-    setSessions(s.data)
-  }
+    const [a, s] = await Promise.all([adminAPI.alerts(), adminAPI.sessions()]);
+    setAlerts(a.data);
+    setSessions(s.data);
+  };
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); }, []);
 
-  const resolve = async (id) => {
-    await adminAPI.resolve(id)
-    load()
-  }
+  const resolve   = async (id) => { await adminAPI.resolve(id);   load(); };
+  const unfreeze  = async (id) => { await adminAPI.unfreeze(id);  load(); };
 
-  const unfreeze = async (id) => {
-    await adminAPI.unfreeze(id)
-    load()
-  }
-
-  const frozen = sessions.filter((s) => s.status === 'frozen')
+  const frozen  = sessions.filter(s => s.status === "frozen");
+  const active  = sessions.filter(s => s.status === "active");
   const avgScore = sessions.length
     ? Math.round(sessions.reduce((a, s) => a + s.trust_score, 0) / sessions.length)
-    : 0
+    : 0;
+  const openAlerts = alerts.filter(a => !a.resolved).length;
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-white text-xl font-bold mb-6">TrustOS — Admin Dashboard</h1>
+    <AppShell>
+      <div className="max-w-7xl mx-auto px-6 py-8">
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {[
-            ['Total Sessions', sessions.length, 'text-indigo-400'],
-            ['Frozen Sessions', frozen.length, 'text-red-400'],
-            ['Avg Trust Score', avgScore, avgScore >= 60 ? 'text-green-400' : 'text-yellow-400'],
-          ].map(([label, value, color]) => (
-            <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-              <div className="text-gray-500 text-xs mb-1">{label}</div>
-              <div className={`text-3xl font-bold ${color}`}>{value}</div>
-            </div>
-          ))}
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Fraud Operations Centre</h1>
+            <p className="text-slate-400 text-sm mt-1">Real-time session and alert management</p>
+          </div>
+          <button onClick={load}
+            className="text-sm border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-mono">
+            ↻ Refresh
+          </button>
         </div>
 
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard label="TOTAL SESSIONS"   value={sessions.length} sub={`${active.length} active`}/>
+          <StatCard label="OPEN ALERTS"      value={openAlerts}      color={openAlerts > 0 ? "text-red-400" : "text-emerald-400"} sub="require action"/>
+          <StatCard label="FROZEN SESSIONS"  value={frozen.length}   color={frozen.length > 0 ? "text-amber-400" : "text-emerald-400"} sub="pending review"/>
+          <StatCard label="AVG TRUST SCORE"  value={avgScore}        color={avgScore >= 60 ? "text-emerald-400" : avgScore >= 40 ? "text-amber-400" : "text-red-400"} sub="across all sessions"/>
+        </div>
+
+        {/* Frozen sessions panel */}
         {frozen.length > 0 && (
-          <div className="bg-gray-900 border border-red-900 rounded-2xl p-4 mb-6">
-            <h3 className="text-red-400 font-semibold mb-3 text-sm">Frozen Sessions</h3>
-            <div className="space-y-2">
-              {frozen.map((s) => (
-                <div key={s.id} className="flex justify-between items-center text-sm">
-                  <span className="text-gray-300">Session #{s.id} — User {s.user_id} — Score: {Math.round(s.trust_score)}</span>
-                  <button onClick={() => unfreeze(s.id)} className="text-xs bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-1 rounded">
+          <div className="mb-6 bg-slate-900/60 border border-amber-500/20 rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-800 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 dot-pulse inline-block"/>
+              <p className="text-sm font-semibold text-amber-400">Frozen Sessions — Requires Attention</p>
+            </div>
+            <div className="p-4 flex flex-col gap-2">
+              {frozen.map(s => (
+                <div key={s.id}
+                  className="flex items-center justify-between bg-slate-800/50 border border-slate-700/60 rounded-xl px-5 py-3">
+                  <div className="flex items-center gap-6">
+                    <div>
+                      <p className="text-xs text-slate-500 font-mono">SESSION</p>
+                      <p className="text-sm font-mono text-white font-semibold">#{s.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 font-mono">USER</p>
+                      <p className="text-sm font-mono text-slate-300">UID-{s.user_id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 font-mono">TRUST SCORE</p>
+                      <p className="text-sm font-mono font-bold text-red-400">{Math.round(s.trust_score)}/100</p>
+                    </div>
+                  </div>
+                  <button onClick={() => unfreeze(s.id)}
+                    className="text-xs font-mono font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-900 px-4 py-2 rounded-lg transition-colors">
                     Unfreeze
                   </button>
                 </div>
@@ -64,8 +94,64 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <AlertTable alerts={alerts} onResolve={resolve} />
+        {/* Alerts */}
+        <AlertTable alerts={alerts} onResolve={resolve} sessions={sessions}/>
+
+        {/* Session table */}
+        {sessions.length > 0 && (
+          <div className="mt-6 bg-slate-900/60 border border-slate-700/60 rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-800">
+              <p className="text-xs font-mono text-slate-500 tracking-widest">ALL SESSIONS</p>
+              <p className="text-sm text-slate-300 font-medium mt-0.5">Last 50 sessions across all users</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    {["Session ID","User ID","Trust Score","Risk Level","Status","Started"].map(h => (
+                      <th key={h} className="px-6 py-3 text-left text-xs font-mono text-slate-500 tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map(s => {
+                    const sc = Math.round(s.trust_score);
+                    const riskColor = sc >= 60 ? "text-emerald-400" : sc >= 40 ? "text-amber-400" : "text-red-400";
+                    const riskLabel = sc >= 60 ? "Low" : sc >= 40 ? "Medium" : "High";
+                    return (
+                      <tr key={s.id} className="border-b border-slate-800/60 hover:bg-slate-800/30 transition-colors">
+                        <td className="px-6 py-4 font-mono text-white">#{s.id}</td>
+                        <td className="px-6 py-4 font-mono text-slate-300">UID-{s.user_id}</td>
+                        <td className="px-6 py-4">
+                          <span className={`font-mono font-bold ${riskColor}`}>{sc}</span>
+                          <span className="text-slate-500 text-xs">/100</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`text-xs font-mono font-semibold ${riskColor}`}>{riskLabel}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-md border ${
+                            s.status === "active"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                              : s.status === "frozen"
+                              ? "bg-red-500/10 text-red-400 border-red-500/30"
+                              : "bg-slate-800 text-slate-400 border-slate-700"
+                          }`}>
+                            {s.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-400 font-mono text-xs">
+                          {new Date(s.created_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  )
+    </AppShell>
+  );
 }

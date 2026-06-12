@@ -37,3 +37,12 @@ def login(
 
     token = auth.create_access_token({"sub": db_user.username})
     return {"access_token": token, "token_type": "bearer"}
+
+@router.get("/me")
+def get_me(current_user: models.User = Depends(auth.get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "role": current_user.role
+    }

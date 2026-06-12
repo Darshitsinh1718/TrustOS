@@ -1,70 +1,124 @@
-// src/pages/Transaction.jsx
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { transactionAPI } from '../api'
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { transactionAPI } from "../api";
+import AppShell from "../components/AppShell";
+
+const STATUS = {
+  approved: { label:"Approved",           color:"text-emerald-400", bg:"bg-emerald-500/10", border:"border-emerald-500/30", icon:"✓" },
+  challenged:{ label:"OTP Required",       color:"text-amber-400",   bg:"bg-amber-500/10",   border:"border-amber-500/30",   icon:"⚠" },
+  blocked:  { label:"Blocked — High Risk", color:"text-red-400",     bg:"bg-red-500/10",     border:"border-red-500/30",     icon:"✕" },
+  error:    { label:"Error",               color:"text-red-400",     bg:"bg-red-500/10",     border:"border-red-500/30",     icon:"!" },
+};
 
 export default function Transaction() {
-  const [form, setForm] = useState({ amount: '', beneficiary: '' })
-  const [result, setResult] = useState(null)
-  const navigate = useNavigate()
+  const [form,    setForm]    = useState({ amount:"", beneficiary:"" });
+  const [result,  setResult]  = useState(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const submit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
+    setLoading(true);
     try {
-      const res = await transactionAPI.create({ amount: parseFloat(form.amount), beneficiary: form.beneficiary })
-      setResult(res.data)
+      const res = await transactionAPI.create({ amount:parseFloat(form.amount), beneficiary:form.beneficiary });
+      setResult(res.data);
     } catch (err) {
-      setResult({ status: 'error', error: err.response?.data?.detail })
+      setResult({ status:"error", error:err.response?.data?.detail || "Request failed" });
+    } finally {
+      setLoading(false);
     }
-  }
-
-  const statusStyle = {
-    approved: 'bg-green-900 text-green-300',
-    challenged: 'bg-yellow-900 text-yellow-300',
-    blocked: 'bg-red-900 text-red-300',
-    error: 'bg-red-900 text-red-300',
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6 flex items-center justify-center">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 w-full max-w-md">
-        <button onClick={() => navigate('/dashboard')} className="text-gray-500 text-sm mb-4">← Back</button>
-        <h2 className="text-white text-xl font-bold mb-6">New Transaction</h2>
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="text-gray-400 text-sm">Amount (₹)</label>
-            <input
-              type="number"
-              className="w-full mt-1 bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-indigo-500"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              required
-            />
+    <AppShell>
+      <div className="max-w-xl mx-auto px-6 py-12">
+
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">New Transaction</h1>
+          <p className="text-slate-400 text-sm mt-1">Each transaction is evaluated against your current trust score.</p>
+        </div>
+
+        <div className="bg-slate-900/60 border border-slate-700/60 rounded-2xl p-8">
+          <form onSubmit={submit} className="flex flex-col gap-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Amount (₹)</label>
+              <input
+                type="number" min="1"
+                className="w-full bg-slate-800 text-white rounded-xl px-4 py-3.5 border border-slate-700 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 placeholder-slate-600 text-sm transition"
+                placeholder="e.g. 50000"
+                value={form.amount}
+                onChange={e => setForm({ ...form, amount:e.target.value })}
+                required
+              />
+              <p className="text-xs text-slate-500 mt-1.5">Amounts above ₹80,000 are flagged as high-risk.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Beneficiary Account</label>
+              <input
+                className="w-full bg-slate-800 text-white rounded-xl px-4 py-3.5 border border-slate-700 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 placeholder-slate-600 text-sm transition"
+                placeholder="Account number or UPI ID"
+                value={form.beneficiary}
+                onChange={e => setForm({ ...form, beneficiary:e.target.value })}
+                required
+              />
+            </div>
+
+            <button type="submit" disabled={loading}
+              className="mt-1 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 text-slate-900 font-bold py-3.5 rounded-xl text-sm transition-colors shadow-[0_0_16px_rgba(34,211,238,.2)]">
+              {loading ? "Processing…" : "Submit Transaction →"}
+            </button>
+          </form>
+
+          {/* Result */}
+          {result && (() => {
+            const s = STATUS[result.status] || STATUS.error;
+            return (
+              <div className={`mt-6 rounded-xl px-5 py-5 border ${s.bg} ${s.border}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className={`text-2xl font-bold font-mono ${s.color}`}>{s.icon}</span>
+                  <div>
+                    <p className={`text-base font-bold ${s.color}`}>{s.label}</p>
+                    {result.risk_level && (
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">Risk level: {result.risk_level.toUpperCase()}</p>
+                    )}
+                  </div>
+                </div>
+                {result.status === "challenged" && (
+                  <p className="text-sm text-amber-300 bg-amber-500/10 rounded-lg px-4 py-3 mt-2">
+                    Trust score requires verification. An OTP will be sent to your registered number before funds are released.
+                  </p>
+                )}
+                {result.status === "blocked" && (
+                  <p className="text-sm text-red-300 bg-red-500/10 rounded-lg px-4 py-3 mt-2">
+                    Transaction blocked due to high fraud risk. A fraud alert has been raised. Contact your branch to review.
+                  </p>
+                )}
+                {result.error && (
+                  <p className="text-sm text-red-300">{result.error}</p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Risk guide */}
+        <div className="mt-6 bg-slate-900/40 border border-slate-800 rounded-xl p-5">
+          <p className="text-xs font-mono text-slate-500 tracking-widest mb-3">TRANSACTION RISK GUIDE</p>
+          <div className="flex flex-col gap-2">
+            {[
+              { range:"Score 60–100", decision:"Approved automatically",  color:"text-emerald-400" },
+              { range:"Score 40–59",  decision:"OTP step-up required",    color:"text-amber-400" },
+              { range:"Score 0–39",   decision:"Blocked — fraud risk",    color:"text-red-400" },
+            ].map(r => (
+              <div key={r.range} className="flex items-center justify-between text-sm">
+                <span className="text-slate-400 font-mono">{r.range}</span>
+                <span className={`font-medium ${r.color}`}>{r.decision}</span>
+              </div>
+            ))}
           </div>
-          <div>
-            <label className="text-gray-400 text-sm">Beneficiary Account</label>
-            <input
-              className="w-full mt-1 bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:outline-none focus:border-indigo-500"
-              value={form.beneficiary}
-              onChange={(e) => setForm({ ...form, beneficiary: e.target.value })}
-              required
-            />
-          </div>
-          <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-medium transition">
-            Submit Transaction
-          </button>
-        </form>
-        {result && (
-          <div className={`mt-4 p-4 rounded-lg text-sm ${statusStyle[result.status] || 'bg-gray-800 text-gray-300'}`}>
-            <div className="font-semibold uppercase mb-1">{result.status}</div>
-            {result.risk_level && <div>Risk level: {result.risk_level}</div>}
-            {result.error && <div>{result.error}</div>}
-            {result.status === 'challenged' && (
-              <div className="mt-2 font-medium">⚠️ OTP verification required before funds transfer</div>
-            )}
-          </div>
-        )}
+        </div>
       </div>
-    </div>
-  )
+    </AppShell>
+  );
 }

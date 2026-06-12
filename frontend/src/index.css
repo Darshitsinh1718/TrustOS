@@ -1,4 +1,72 @@
-/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #060B14;
+    color: #CBD5E1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #0D1526; }
+  ::-webkit-scrollbar-thumb { background: #1E3048; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #22D3EE44; }
+}
+
+@layer utilities {
+  .font-mono { font-family: var(--font-mono); }
+
+  /* Status dot pulse */
+  .dot-pulse {
+    animation: dotpulse 2s ease-in-out infinite;
+  }
+  @keyframes dotpulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.35; transform: scale(1.5); }
+  }
+
+  /* Fade-up on load */
+  .fade-up {
+    animation: fadeup 0.55s ease both;
+  }
+  @keyframes fadeup {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Scan lines — applied to hero only */
+  .scanlines {
+    background-image: repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(255,255,255,0.013) 3px, rgba(255,255,255,0.013) 4px
+    );
+  }
+
+  /* Card hover lift */
+  .card-hover {
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-3px);
+    border-color: rgba(34,211,238,0.35) !important;
+    box-shadow: 0 12px 32px rgba(34,211,238,0.08);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-up, .dot-pulse, .card-hover:hover { animation: none; transform: none; }
+  }
+}
