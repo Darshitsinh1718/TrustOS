@@ -13,7 +13,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
     "http://localhost:5173",
-    "https://trust-os-theta.vercel.app"],
+    "https://trust-os-theta.vercel.app",
+    "https://trust-os-git-main-alt-f7.vercel.app",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
