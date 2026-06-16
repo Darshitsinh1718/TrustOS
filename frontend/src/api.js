@@ -11,26 +11,24 @@ api.interceptors.request.use((config) => {
 });
 
 export const authAPI = {
-  // Backend expects x-www-form-urlencoded for OAuth2PasswordRequestForm
   login: (data) =>
     api.post("/auth/login", new URLSearchParams(data), {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     }),
-
-  // Backend expects JSON
   register: (data) =>
     api.post("/auth/register", data, {
       headers: { "Content-Type": "application/json" },
     }),
-
   me: () => api.get("/auth/me"),
 };
 
 export const sessionAPI = {
-  start:   ()     => api.post("/session/start"),
-  current: ()     => api.get("/session/current"),
-  signal:  (type) => api.post("/session/signal", { event_type: type, value: 1 }),
-  events:  ()     => api.get("/session/events"),
+  start:          ()      => api.post("/session/start"),
+  current:        ()      => api.get("/session/current"),
+  signal:         (type)  => api.post("/session/signal", { event_type: type, value: 1 }),
+  events:         ()      => api.get("/session/events"),
+  mlSignal:       (data)  => api.post("/session/ml-signal", data),
+  anomalyEvents:  ()      => api.get("/session/anomaly-events"),
 };
 
 export const transactionAPI = {
@@ -39,10 +37,14 @@ export const transactionAPI = {
 };
 
 export const adminAPI = {
-  alerts:   ()   => api.get("/admin/alerts"),
-  resolve:  (id) => api.post(`/admin/alerts/${id}/resolve`),
-  sessions: ()   => api.get("/admin/sessions"),
-  unfreeze: (id) => api.post(`/admin/sessions/${id}/unfreeze`),
+  alerts:          ()    => api.get("/admin/alerts"),
+  resolve:         (id)  => api.post(`/admin/alerts/${id}/resolve`),
+  sessions:        ()    => api.get("/admin/sessions"),
+  unfreeze:        (id)  => api.post(`/admin/sessions/${id}/unfreeze`),
+  anomalyEvents:   ()    => api.get("/admin/anomaly-events"),
+  anomalyTimeline: ()    => api.get("/admin/anomaly-timeline"),
+  topRiskyUsers:   ()    => api.get("/admin/top-risky-users"),
+  mlStats:         ()    => api.get("/admin/ml-stats"),
 };
 
 export default api;
