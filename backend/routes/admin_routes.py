@@ -55,3 +55,11 @@ def unfreeze_session(
         session.trust_score = 60.0   # reset to cautious baseline
         db.commit()
     return {"status": "unfrozen", "new_score": 60.0}
+
+# Add this import at the top of admin_routes.py
+from fraud_model import get_model_info as _ieee_model_info
+
+# Add this route inside the existing router
+@router.get("/model-info")
+def admin_model_info(_=Depends(require_admin)):
+    return _ieee_model_info()

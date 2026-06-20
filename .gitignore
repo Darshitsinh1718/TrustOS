@@ -3,3 +3,15 @@ frontend/node_modules/
 backend/__pycache__/ 
 backend/routes/__pycache__/ 
 backend/trustos.db 
+
+backend/data/*.csv
+*.db
+trustos.db
+*.pkl
+!backend/models/ieee_fraud_model.pkl
+!backend/models/ieee_model_metadata.json
+__pycache__/
+venv/
+.venv/
+node_modules/
+dist/

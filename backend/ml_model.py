@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 import joblib
 import os
+import warnings
 
 MODEL_PATH = "trust_model.pkl"
 
@@ -36,7 +37,16 @@ def train_and_save_model() -> IsolationForest:
 
 def _load_model() -> IsolationForest:
     if os.path.exists(MODEL_PATH):
-        return joblib.load(MODEL_PATH)
+        try:
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                model = joblib.load(MODEL_PATH)
+                # If any warning indicates an inconsistent sklearn version, retrain
+                if any("InconsistentVersionWarning" in str(x.message) for x in w):
+                    return train_and_save_model()
+                return model
+        except Exception:
+            return train_and_save_model()
     return train_and_save_model()
 
 
@@ -94,8 +104,8 @@ def detect_anomaly(features: dict) -> dict:
         reason = "Unrecognised location. " + reason
 
     return {
-        "is_anomaly":    is_anomaly,
-        "anomaly_score": round(anomaly_score, 4),
-        "risk_penalty":  risk_penalty,
-        "reason":        reason,
-    }
+    "is_anomaly": bool(is_anomaly),
+    "anomaly_score": float(anomaly_score),
+    "risk_penalty": int(risk_penalty),
+    "reason": str(reason)
+}

@@ -23,28 +23,25 @@ export const authAPI = {
 };
 
 export const sessionAPI = {
-  start:          ()      => api.post("/session/start"),
-  current:        ()      => api.get("/session/current"),
-  signal:         (type)  => api.post("/session/signal", { event_type: type, value: 1 }),
-  events:         ()      => api.get("/session/events"),
-  mlSignal:       (data)  => api.post("/session/ml-signal", data),
-  anomalyEvents:  ()      => api.get("/session/anomaly-events"),
+  start:   ()     => api.post("/session/start"),
+  current: ()     => api.get("/session/current"),
+  signal:  (type) => api.post("/session/signal", { event_type: type, value: 1 }),
+  events:  ()     => api.get("/session/events"),
 };
 
 export const transactionAPI = {
-  create: (data) => api.post("/transaction/", data),
-  list:   ()     => api.get("/transaction/"),
+  create:     (data) => api.post("/transaction/", data),
+  list:       ()     => api.get("/transaction/"),
+  fraudCheck: (data) => api.post("/transaction/fraud-check", data),
+  modelInfo:  ()     => api.get("/transaction/model-info"),
 };
 
 export const adminAPI = {
-  alerts:          ()    => api.get("/admin/alerts"),
-  resolve:         (id)  => api.post(`/admin/alerts/${id}/resolve`),
-  sessions:        ()    => api.get("/admin/sessions"),
-  unfreeze:        (id)  => api.post(`/admin/sessions/${id}/unfreeze`),
-  anomalyEvents:   ()    => api.get("/admin/anomaly-events"),
-  anomalyTimeline: ()    => api.get("/admin/anomaly-timeline"),
-  topRiskyUsers:   ()    => api.get("/admin/top-risky-users"),
-  mlStats:         ()    => api.get("/admin/ml-stats"),
+  alerts:    ()   => api.get("/admin/alerts"),
+  resolve:   (id) => api.post(`/admin/alerts/${id}/resolve`),
+  sessions:  ()   => api.get("/admin/sessions"),
+  unfreeze:  (id) => api.post(`/admin/sessions/${id}/unfreeze`),
+  modelInfo: ()   => api.get("/admin/model-info"),
 };
 
 export default api;

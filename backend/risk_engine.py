@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session as DBSession
 from datetime import datetime
 import models
+from fraud_model import predict_transaction_fraud
 
 SCORE_RULES = {
     "keystroke_fast":    (-3,  "Unusually fast typing (bot-like)"),
@@ -46,8 +47,8 @@ def apply_signal(db: DBSession, session_id: int, signal_key: str) -> dict:
     event = models.RiskEvent(
         session_id  = session_id,
         event_type  = signal_key,
-        score_delta = delta,
-        new_score   = new_score,
+        score_delta = float(delta),
+        new_score   = float(new_score),
         reason      = reason,
         timestamp   = datetime.utcnow(),
     )
@@ -70,26 +71,74 @@ def apply_signal(db: DBSession, session_id: int, signal_key: str) -> dict:
     db.refresh(session)
 
     return {
-        "trust_score":    new_score,
+        "trust_score":    float(new_score),
         "risk_level":     get_risk_level(new_score),
         "intervention":   intervention,
         "reason":         reason,
-        "delta":          delta,
+        "delta":          float(delta),
         "session_status": session.status,
     }
 
 
-def apply_ml_penalty(db: DBSession, session_id: int, penalty: int, reason: str) -> float:
-    """Apply a penalty from the ML engine directly to the trust score."""
+def apply_transaction_fraud_model(db: DBSession, session_id: int, transaction_payload: dict) -> dict:
+    """
+    Runs the IEEE-CIS fraud model on a transaction payload, applies the
+    resulting penalty to the session trust score, logs a RiskEvent, and
+    raises an Alert + freezes the session if the decision is FREEZE_AND_ALERT.
+
+    Returns a fully JSON-safe dict combining the ML result with the
+    updated session state.
+    """
     session = db.query(models.Session).filter(models.Session.id == session_id).first()
     if not session:
-        return 0.0
+        return {"error": "Session not found"}
+
+    ml_result = predict_transaction_fraud(transaction_payload)
+
+    penalty   = int(ml_result["risk_penalty"])
     new_score = max(0.0, min(100.0, session.trust_score - penalty))
     session.trust_score = new_score
-    if get_intervention(new_score) == "freeze" and session.status == "active":
+
+    # Log a risk event for the timeline/explainability panel
+    risk_event = models.RiskEvent(
+        session_id  = session_id,
+        event_type  = "ml_fraud_check",
+        score_delta = float(-penalty),
+        new_score   = float(new_score),
+        reason      = ml_result["reason"],
+        timestamp   = datetime.utcnow(),
+    )
+    db.add(risk_event)
+
+    # Sync session status with ML decision
+    decision = ml_result["decision"]
+    if decision == "FREEZE_AND_ALERT" and session.status == "active":
         session.status = "frozen"
+        alert = models.Alert(
+            session_id = session_id,
+            user_id    = session.user_id,
+            alert_type = "ML_FRAUD_DETECTED",
+            message    = (
+                f"IEEE-CIS model flagged transaction "
+                f"(probability {ml_result['fraud_probability']*100:.1f}%). {ml_result['reason']}"
+            ),
+        )
+        db.add(alert)
+
     db.commit()
-    return new_score
+    db.refresh(session)
+
+    return {
+        "fraud_probability": float(ml_result["fraud_probability"]),
+        "is_fraud":          bool(ml_result["is_fraud"]),
+        "risk_penalty":      int(penalty),
+        "decision":          str(decision),
+        "reason":            str(ml_result["reason"]),
+        "model_name":        str(ml_result["model_name"]),
+        "trust_score":       float(new_score),
+        "risk_level":        get_risk_level(new_score),
+        "session_status":    session.status,
+    }
 
 
 def calculate_transaction_risk(amount: float, trust_score: float,
@@ -107,5 +156,5 @@ def calculate_transaction_risk(amount: float, trust_score: float,
         "signal":       signal,
         "risk_level":   risk,
         "intervention": decision,
-        "amount_ratio": ratio,
+        "amount_ratio": float(ratio),
     }

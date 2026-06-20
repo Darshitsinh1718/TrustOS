@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -35,9 +35,27 @@ class BehaviorSignal(BaseModel):
     value: float
     metadata: Optional[dict] = {}
 
+
+class MLSignal(BaseModel):
+    login_hour: Optional[int] = 12
+    transaction_amount: Optional[float] = 0.0
+    typing_speed: Optional[float] = 55.0
+    mouse_speed: Optional[float] = 45.0
+    device_known: Optional[int] = 1
+    location_known: Optional[int] = 1
+
 class TransactionCreate(BaseModel):
     amount: float
     beneficiary: str
+    # Optional IEEE-CIS style enrichment fields — all optional so the
+    # existing simple flow (amount + beneficiary only) keeps working.
+    card4: Optional[str] = None          # e.g. "visa", "mastercard"
+    card6: Optional[str] = None          # e.g. "debit", "credit"
+    ProductCD: Optional[str] = None
+    P_emaildomain: Optional[str] = None
+    R_emaildomain: Optional[str] = None
+    DeviceType: Optional[str] = None
+    DeviceInfo: Optional[str] = None
 
 class TransactionOut(BaseModel):
     id: int
@@ -67,29 +85,47 @@ class AlertOut(BaseModel):
     class Config: from_attributes = True
 
 
-# ── NEW: ML schemas ────────────────────────────────────────────
-class MLSignalInput(BaseModel):
-    login_hour:         int   = 12
-    transaction_amount: float = 0.0
-    typing_speed:       float = 55.0
-    mouse_speed:        float = 45.0
-    device_known:       int   = 1
-    location_known:     int   = 1
+# ── IEEE-CIS fraud check schemas ────────────────────────────────
+class FraudCheckRequest(BaseModel):
+    TransactionAmt: float
+    ProductCD:      Optional[str] = "unknown"
+    card1:          Optional[float] = None
+    card2:          Optional[float] = None
+    card3:          Optional[float] = None
+    card4:          Optional[str]   = "unknown"
+    card5:          Optional[float] = None
+    card6:          Optional[str]   = "unknown"
+    addr1:          Optional[float] = None
+    addr2:          Optional[float] = None
+    P_emaildomain:  Optional[str] = "unknown"
+    R_emaildomain:  Optional[str] = "unknown"
+    DeviceType:     Optional[str] = "unknown"
+    DeviceInfo:     Optional[str] = "unknown"
+    # Demo override used by the frontend demo presets. When present, the
+    # backend will return deterministic demo outputs instead of running
+    # the trained model.
+    demo_risk:      Optional[str] = None
 
-class AnomalyEventOut(BaseModel):
-    id:                 int
-    session_id:         int
-    user_id:            int
-    login_hour:         int
-    transaction_amount: float
-    typing_speed:       float
-    mouse_speed:        float
-    device_known:       int
-    location_known:     int
-    anomaly_score:      float
-    is_anomaly:         bool
-    risk_penalty:       int
-    reason:             str
-    trust_score_after:  float
-    timestamp:          datetime
-    class Config: from_attributes = True
+class FraudCheckResponse(BaseModel):
+    fraud_probability: float
+    is_fraud:          bool
+    risk_penalty:      int
+    decision:          str
+    reason:            str
+    model_name:        str
+    trust_score:       Optional[float] = None
+    risk_level:        Optional[str]   = None
+    session_status:    Optional[str]   = None
+
+class ModelInfoResponse(BaseModel):
+    available:         bool
+    model_name:        str
+    dataset_name:      Optional[str] = None
+    feature_count:     Optional[int] = None
+    trained_at:        Optional[str] = None
+    train_rows:        Optional[int] = None
+    test_rows:         Optional[int] = None
+    fraud_rate:        Optional[float] = None
+    metrics:           Optional[dict] = None
+    selected_features: Optional[List[str]] = None
+    message:           Optional[str] = None

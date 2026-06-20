@@ -13,7 +13,7 @@ export default function AppShell({ children }) {
 
   const logout = () => {
     localStorage.removeItem("token");
-    navigate("/login");
+    navigate("/login",{ replace: true });
   };
 
   return (

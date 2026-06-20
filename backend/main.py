@@ -1,20 +1,32 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from database import engine
 import models
-from routes import auth_routes, session_routes, transaction_routes, admin_routes
-from routes.ml_routes    import router as ml_router
-from routes.admin_ml_routes import router as admin_ml_router
+
+from routes import (
+    auth_routes,
+    session_routes,
+    transaction_routes,
+    admin_routes,
+)
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="TrustOS API", version="2.0.0")
+app = FastAPI(
+    title="TrustOS API",
+    version="3.0.0"
+)
 
 origins = [
     "http://localhost:5173",
+    "https://trust-os-theta.vercel.app",
+    "https://trust-os-git-main-alt-f7.vercel.app",
     os.getenv("FRONTEND_URL", ""),
 ]
+
+origins = [origin for origin in origins if origin]
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,14 +36,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Core routes
 app.include_router(auth_routes.router)
 app.include_router(session_routes.router)
 app.include_router(transaction_routes.router)
 app.include_router(admin_routes.router)
-app.include_router(ml_router)
-app.include_router(admin_ml_router)
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "2.0.0", "ml": "isolation-forest-v1"}
+    return {
+        "status": "ok",
+        "version": "3.0.0",
+        "ml": "ieee-cis-randomforest"
+    }

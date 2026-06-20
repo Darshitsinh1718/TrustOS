@@ -1,38 +1,45 @@
-import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { authAPI } from './api'
+import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { authAPI } from "./api";
 
-import LandingPage from './pages/LandingPage'
-import Login from './pages/Login'
-import UserDashboard from './pages/UserDashboard'
-import Transaction from './pages/Transaction'
-import AdminDashboard from './pages/AdminDashboard'
+import LandingPage from "./pages/LandingPage";
+import Login from "./pages/Login";
+import UserDashboard from "./pages/UserDashboard";
+import Transaction from "./pages/Transaction";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function PrivateRoute({ children }) {
-  return localStorage.getItem('token') ? children : <Navigate to="/login" />
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/login" replace />;
+}
+
+function PublicRoute({ children }) {
+  const token = localStorage.getItem("token");
+  return token ? <Navigate to="/dashboard" replace /> : children;
 }
 
 function AdminRoute({ children }) {
-  const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const checkAdmin = async () => {
       try {
-        const res = await authAPI.me()
-        setIsAdmin(res.data.role === 'admin')
+        const res = await authAPI.me();
+        setIsAdmin(res.data.role === "admin");
       } catch {
-        setIsAdmin(false)
+        localStorage.removeItem("token");
+        setIsAdmin(false);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    checkAdmin()
-  }, [])
+    checkAdmin();
+  }, []);
 
-  if (!localStorage.getItem('token')) {
-    return <Navigate to="/login" />
+  if (!localStorage.getItem("token")) {
+    return <Navigate to="/login" replace />;
   }
 
   if (loading) {
@@ -40,14 +47,14 @@ function AdminRoute({ children }) {
       <div className="min-h-screen bg-[#060B14] flex items-center justify-center text-white">
         Checking access...
       </div>
-    )
+    );
   }
 
   if (!isAdmin) {
-    return <Navigate to="/dashboard" />
+    return <Navigate to="/dashboard" replace />;
   }
 
-  return children
+  return children;
 }
 
 export default function App() {
@@ -55,7 +62,15 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
+
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
 
         <Route
           path="/dashboard"
@@ -84,8 +99,8 @@ export default function App() {
           }
         />
 
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }

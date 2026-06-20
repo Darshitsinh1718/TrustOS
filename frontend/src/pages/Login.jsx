@@ -46,16 +46,29 @@ export default function Login() {
   const navigate = useNavigate();
 
   const handlePostAuth = async (token) => {
-    localStorage.setItem("token", token);
+  localStorage.setItem("token", token);
+
+  try {
     const me = await authAPI.me();
 
     if (me.data.role === "admin") {
-      navigate("/admin");
-    } else {
-      await sessionAPI.start();
-      navigate("/dashboard");
+      navigate("/admin", { replace: true });
+      return;
     }
+
+    try {
+      await sessionAPI.start();
+    } catch (sessionErr) {
+      console.log("Session start skipped/failed:", sessionErr.response?.data || sessionErr.message);
+    }
+
+    navigate("/dashboard", { replace: true });
+  } catch (err) {
+    localStorage.removeItem("token");
+    setError("Login successful but user profile could not be loaded.");
+  }
   };
+
 
   const handleSignIn = async (e) => {
     e.preventDefault();

@@ -1,65 +1,102 @@
-# routes/transaction_routes.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import get_current_user
-import models, schemas, risk_engine
+import models, schemas
+import risk_engine
+from fraud_model import predict_transaction_fraud, get_model_info
 
 router = APIRouter(prefix="/transaction", tags=["transaction"])
+
+
+def _map_to_ieee_payload(txn: schemas.TransactionCreate) -> dict:
+    """Map the simple TrustOS transaction form into IEEE-CIS feature shape."""
+    return {
+        "TransactionAmt": float(txn.amount),
+        "ProductCD":      txn.ProductCD or "W",
+        "card4":          txn.card4 or "unknown",
+        "card6":          txn.card6 or "unknown",
+        "P_emaildomain":  txn.P_emaildomain or "unknown",
+        "R_emaildomain":  txn.R_emaildomain or "unknown",
+        "DeviceType":     txn.DeviceType or "unknown",
+        "DeviceInfo":     txn.DeviceInfo or "unknown",
+    }
+
 
 @router.post("/", response_model=schemas.TransactionOut)
 def create_transaction(
     txn: schemas.TransactionCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
 ):
     session = db.query(models.Session).filter(
         models.Session.user_id == current_user.id,
-        models.Session.status == "active"
+        models.Session.status == "active",
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="No active session")
     if session.status == "frozen":
         raise HTTPException(status_code=403, detail="Session frozen due to high risk")
 
-    txn_risk = risk_engine.calculate_transaction_risk(txn.amount, session.trust_score)
-    risk_engine.apply_signal(db, session.id, txn_risk["signal"])
+    # Run IEEE-CIS fraud model on this transaction
+    ieee_payload = _map_to_ieee_payload(txn)
+    ml_result    = risk_engine.apply_transaction_fraud_model(db, session.id, ieee_payload)
 
-    # Determine transaction status
-    intervention = txn_risk["intervention"]
-    if intervention == "freeze":
+    decision = ml_result["decision"]
+    if decision == "FREEZE_AND_ALERT":
         status = "blocked"
-    elif intervention == "challenge":
+        risk_level = "HIGH"
+    elif decision == "STEP_UP_OTP":
         status = "challenged"
+        risk_level = "MEDIUM"
     else:
         status = "approved"
+        risk_level = "LOW"
 
     new_txn = models.Transaction(
-        session_id=session.id,
-        amount=txn.amount,
-        beneficiary=txn.beneficiary,
-        status=status,
-        risk_level=txn_risk["risk_level"]
+        session_id  = session.id,
+        amount      = txn.amount,
+        beneficiary = txn.beneficiary,
+        status      = status,
+        risk_level  = risk_level,
     )
     db.add(new_txn)
-
-    if status == "blocked":
-        alert = models.Alert(
-            session_id=session.id,
-            user_id=current_user.id,
-            alert_type="TRANSACTION_BLOCKED",
-            message=f"Transaction of ₹{txn.amount} to {txn.beneficiary} blocked. Risk: {txn_risk['risk_level']}",
-        )
-        db.add(alert)
-
     db.commit()
     db.refresh(new_txn)
     return new_txn
 
+
+@router.post("/fraud-check", response_model=schemas.FraudCheckResponse)
+def fraud_check(
+    payload: schemas.FraudCheckRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Standalone IEEE-CIS fraud check — does not create a Transaction row,
+    but does affect the session trust score and can raise alerts."""
+    session = db.query(models.Session).filter(
+        models.Session.user_id == current_user.id,
+        models.Session.status == "active",
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="No active session")
+
+    result = risk_engine.apply_transaction_fraud_model(db, session.id, payload.model_dump())
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+
+    return result
+
+
+@router.get("/model-info", response_model=schemas.ModelInfoResponse)
+def model_info(current_user: models.User = Depends(get_current_user)):
+    return get_model_info()
+
+
 @router.get("/", response_model=list[schemas.TransactionOut])
 def get_transactions(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
 ):
     sessions = db.query(models.Session).filter(
         models.Session.user_id == current_user.id
