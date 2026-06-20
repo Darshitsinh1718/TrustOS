@@ -299,11 +299,7 @@ npm install
 npm run dev
 ```
 
-Frontend:
-
-```text
-https://trust-os-theta.vercel.app/
-```
+Frontend:  https://trust-os-theta.vercel.app/
 
 ---
 
