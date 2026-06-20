@@ -281,14 +281,6 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-Backend:
-
-```text
-trustos-production.up.railway.app
-```
-
----
-
 ## Frontend Setup
 
 ```bash
@@ -298,8 +290,19 @@ npm install
 
 npm run dev
 ```
+## 🌐 Live Demo
 
-Frontend:  https://trust-os-theta.vercel.app/
+### Frontend (Vercel)
+
+🔗 https://trust-os-theta.vercel.app/
+
+### Backend API (Railway)
+
+🔗 https://trustos-production.up.railway.app
+
+### API Documentation
+
+🔗 https://trustos-production.up.railway.app/docs
 
 ---
 
