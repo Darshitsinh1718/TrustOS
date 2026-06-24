@@ -1,5 +1,7 @@
 // Shared nav + page wrapper used by every authenticated page
 import { useNavigate, useLocation } from "react-router-dom";
+import UserDropdown from "./UserDropdown";
+import { useAuth } from "../hooks/useAuth";
 
 const NAV = [
   { label: "Session", path: "/dashboard" },
@@ -10,6 +12,7 @@ const NAV = [
 export default function AppShell({ children }) {
   const navigate  = useNavigate();
   const { pathname } = useLocation();
+  const { isAuthenticated } = useAuth();
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -46,10 +49,16 @@ export default function AppShell({ children }) {
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dot-pulse inline-block" />
             LIVE
           </span>
-          <button onClick={logout}
-            className="text-xs text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-md transition-colors font-mono">
-            Logout
-          </button>
+
+          {/* Show UserDropdown for Google-authenticated users, fallback to simple logout */}
+          {isAuthenticated ? (
+            <UserDropdown />
+          ) : (
+            <button onClick={logout}
+              className="text-xs text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-md transition-colors font-mono">
+              Logout
+            </button>
+          )}
         </div>
       </header>
 

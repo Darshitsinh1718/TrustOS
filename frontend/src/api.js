@@ -19,6 +19,10 @@ export const authAPI = {
     api.post("/auth/register", data, {
       headers: { "Content-Type": "application/json" },
     }),
+  googleLogin: (data) =>
+    api.post("/auth/google", data, {
+      headers: { "Content-Type": "application/json" },
+    }),
   me: () => api.get("/auth/me"),
 };
 

@@ -16,6 +16,11 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class GoogleAuthPayload(BaseModel):
+    email: str
+    username: Optional[str] = None
+    uid: str
+
 class UserOut(BaseModel):
     id: int
     username: str

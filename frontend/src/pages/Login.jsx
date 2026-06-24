@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authAPI, sessionAPI } from "../api";
+import GoogleLoginButton from "../components/GoogleLoginButton";
+import { useAuth } from "../hooks/useAuth";
 
 function Field({ label, id, type = "text", placeholder, value, onChange, hint }) {
   return (
@@ -35,15 +37,30 @@ function ErrorBanner({ message }) {
   );
 }
 
+function Divider() {
+  return (
+    <div className="flex items-center gap-3 my-1">
+      <div className="flex-1 h-px bg-slate-700/60" />
+      <span className="text-xs font-mono text-slate-500 tracking-wider">OR</span>
+      <div className="flex-1 h-px bg-slate-700/60" />
+    </div>
+  );
+}
+
 export default function Login() {
   const [tab, setTab] = useState("signin");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [signInForm, setSignInForm] = useState({ username: "", password: "" });
+  const [signInForm, setSignInForm] = useState({ email: "", password: "" });
   const [signUpForm, setSignUpForm] = useState({ username: "", email: "", password: "" });
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const navigate = useNavigate();
+  const { loginWithEmail, signUpWithEmail } = useAuth();
+
+  // No premature redirect here. 
+  // GoogleLoginButton or handlePostAuth will navigate AFTER setting the JWT token.
 
   const handlePostAuth = async (token) => {
   localStorage.setItem("token", token);
@@ -76,10 +93,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await authAPI.login(signInForm);
-      await handlePostAuth(res.data.access_token);
+      await loginWithEmail(signInForm.email, signInForm.password);
+      window.location.href = "/dashboard";
     } catch (err) {
-      setError("Username or password is incorrect.");
+      // Error is handled and exposed by context, so we just set loading false
     } finally {
       setLoading(false);
     }
@@ -97,10 +114,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await authAPI.register(signUpForm);
-      await handlePostAuth(res.data.access_token);
+      await signUpWithEmail(signUpForm.email, signUpForm.password, signUpForm.username);
+      setVerificationSent(true);
     } catch (err) {
-      setError("Registration failed. Username or email may already be taken.");
+      // Error handled by context
     } finally {
       setLoading(false);
     }
@@ -109,6 +126,7 @@ export default function Login() {
   const switchTab = (t) => {
     setTab(t);
     setError("");
+    setVerificationSent(false);
   };
 
   return (
@@ -160,11 +178,12 @@ export default function Login() {
                 <ErrorBanner message={error} />
 
                 <Field
-                  label="Username"
-                  id="username"
-                  placeholder="your_username"
-                  value={signInForm.username}
-                  onChange={(e) => setSignInForm({ ...signInForm, username: e.target.value })}
+                  label="Email"
+                  id="login-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={signInForm.email}
+                  onChange={(e) => setSignInForm({ ...signInForm, email: e.target.value })}
                 />
 
                 <Field
@@ -184,6 +203,9 @@ export default function Login() {
                   {loading ? "Signing in…" : "Sign in →"}
                 </button>
 
+                <Divider />
+                <GoogleLoginButton />
+
                 <p className="text-center text-xs text-slate-500">
                   No account?{" "}
                   <button
@@ -197,7 +219,7 @@ export default function Login() {
               </form>
             )}
 
-            {tab === "signup" && (
+            {tab === "signup" && !verificationSent && (
               <form onSubmit={handleSignUp} className="flex flex-col gap-4">
                 <div>
                   <p className="text-base font-semibold text-white">Create account</p>
@@ -241,6 +263,9 @@ export default function Login() {
                   {loading ? "Creating account…" : "Create account →"}
                 </button>
 
+                <Divider />
+                <GoogleLoginButton />
+
                 <p className="text-center text-xs text-slate-500">
                   Already registered?{" "}
                   <button
@@ -252,6 +277,24 @@ export default function Login() {
                   </button>
                 </p>
               </form>
+            )}
+            
+            {tab === "signup" && verificationSent && (
+              <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-3xl mb-2">
+                  ✓
+                </div>
+                <p className="text-lg font-semibold text-white">Check your email</p>
+                <p className="text-sm text-slate-400 max-w-[240px]">
+                  We've sent a verification link to <strong>{signUpForm.email}</strong>. Please verify your email before signing in.
+                </p>
+                <button
+                  onClick={() => switchTab("signin")}
+                  className="mt-4 w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg text-sm transition-colors border border-slate-700"
+                >
+                  Return to Sign In
+                </button>
+              </div>
             )}
           </div>
         </div>

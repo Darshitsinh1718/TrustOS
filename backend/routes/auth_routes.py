@@ -38,6 +38,24 @@ def login(
     token = auth.create_access_token({"sub": db_user.username})
     return {"access_token": token, "token_type": "bearer"}
 
+@router.post("/google", response_model=schemas.Token)
+def google_auth(payload: schemas.GoogleAuthPayload, db: Session = Depends(get_db)):
+    # Simple check for existing user by email
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user:
+        # Create user
+        user = models.User(
+            username=payload.email.split("@")[0] + "_" + payload.uid[:5],
+            email=payload.email,
+            hashed_password=""
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    token = auth.create_access_token({"sub": user.username})
+    return {"access_token": token, "token_type": "bearer"}
+
 @router.get("/me")
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     return {
